@@ -1,0 +1,60 @@
+---
+title: "project_proposal"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Group 3
+
+## Group Members 
+
+- Steven Hizmi
+- Alex Smith
+- Abhijeet Manohar
+- Yumian Cui
+
+## Communication
+- Meet Thursday and Sundays around 7pm Madison time.
+- Use Discord as the platform to communicate
+
+## Motivation
+We are interested in University data all around the world. All group members have agreed and are interested in top level education.
+
+# Questions To Explore
+**Overarching Question**
+How does national expenditure on education relate to the ranking over universities within that nation?
+- Our prediction is that there is a positive linear correlation between the two.
+
+**Specific Questions**
+These are mainly drawn from the specific metrics that ranking agencies examine to determine the overall rankings.
+All are assumed to have a positive correlation with national expenditure on education, and questions are listed in decreasing order of predicted linear correlation coefficient.
+- How does national education expenditure relate to assessed faculty quality?
+- How does national education expenditure relate to assessed quality of student experience?
+- How does national education expenditure relate to alumni employment rates?
+- How does national education expenditure relate to university publication rates?
+
+
+## Data
+- Source of possible data (kaggle): https://www.kaggle.com/mylesoneill/world-university-rankings
+
+## Methods
+- Multiple linear regression models of expenditure against a variety of metrics
+- We will begin by grouping all listed universities by nation and running analysis, however we recognize that this could skew the data against countries for which more universities are included (hypothetically, if Mozambique had only one university listed, and it was in the top 50 universities, it's national ranking against a country with dozens of universities in the top 50 but hundreds of universities below the top 50 would skew the results towards a higher average ranking for Mozambique universities).  We will likely add weighted values to our model to countries with highly ranked universities, so as to account for this possible skew.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

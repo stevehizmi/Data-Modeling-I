@@ -1,0 +1,491 @@
+---
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(include = FALSE, message = FALSE, echo = TRUE)
+library(tidyverse)
+```
+
+# Final Project
+##### Draft
+
+### Group 3
+#### Group Members
+
+- Abhijeet Manohar
+- Alex Smith
+- Steven Hizmi
+- Yumian Cui
+
+```{r read_in_data, warning=FALSE}
+# read in the institutional data
+raw_cwur_data <- read_csv("cwurData.csv")
+raw_shanghai_data <- read_csv("shanghaiData.csv")
+raw_times_data <- read_csv("timesData.csv")
+
+# read in the expenditure data
+raw_expenditure_data <- read_csv("education_expenditure_supplementary_data.csv")
+
+# expendisture from 2013 to 2016
+expenditure <- read_csv("country_expenditure(2013-2016).csv") %>%
+  select("country":"2016") %>%
+  slice(1:38) %>%
+  mutate(country = case_when(
+  str_detect(country,"^Russian") ~ "Russia",
+  TRUE ~ country))
+```
+
+```{r}
+# unique(cwur_data[c("country")])
+# unique(raw_shanghai_data[c("year")])
+# unique(raw_times_data[c("country")])
+```
+
+```{r clean_data}
+# clean the CWUR data
+cwur_data <- raw_cwur_data %>% 
+  # ensure country names will match between data sets
+  mutate(country = case_when(
+    country == "USA" ~ "United States",
+    country == "South Korea" ~ "Korea, Republic of",
+    TRUE ~ country
+  )) %>% 
+  # arrange with most current year's ranking at top
+  arrange(desc(year), world_rank)
+
+# remove raw_cwur_data
+rm(raw_cwur_data)
+
+# create a data frame that pairs universities to their country
+  # based on the CWUR data, as it has the most unique universities in it
+school_country_data <- tibble(university_name = cwur_data$institution, 
+                              country = cwur_data$country) %>% unique()
+
+# clean the Shanghai data
+shanghai_data <- raw_shanghai_data %>%
+  # filter out universities with a ranking range
+  filter(str_detect(world_rank, "^\\d*$")) %>%
+  mutate(world_rank = as.double(world_rank)) %>%
+  # ensure university names will match with school_country_data
+  mutate(university_name = ifelse(str_detect(university_name, "^The "), str_replace(university_name, "^The ", ""), university_name)) %>% 
+  mutate(university_name = case_when(
+    university_name == "Massachusetts Institute of Technology (MIT)" ~ "Massachusetts Institute of Technology",
+    university_name == "University of California-Berkeley" ~ "University of California, Berkeley",
+    university_name == "University of Washington" ~ "University of Washington - Seattle",
+    university_name == "University of Wisconsin - Madison" ~ "University of Wisconsin–Madison",
+    university_name == "Arizona State University - Tempe" ~ "Arizona State University",
+    university_name == "Ecole Normale Superieure - Paris" ~ "École normale supérieure - Paris",
+    university_name == "Heidelberg University" ~ "Ruprecht Karl University of Heidelberg",
+    university_name == "University of Heidelberg" ~ "Ruprecht Karl University of Heidelberg",
+    university_name == "Indiana University Bloomington" ~ "Indiana University - Bloomington",
+    university_name == "KU Leuven" ~ "Katholieke Universiteit Leuven",
+    university_name == "Moscow State University" ~ "Lomonosov Moscow State University",
+    university_name == "Pennsylvania State University - University Park" ~ "Pennsylvania State University, University Park",
+    university_name == "Pierre and Marie  Curie University - Paris 6" ~ "Pierre-and-Marie-Curie University",
+    university_name == "Purdue University - West Lafayette" ~ "Purdue University, West Lafayette",
+    university_name == "Rutgers, The State University of New Jersey" ~ "Rutgers University-New Brunswick",
+    university_name == "Rutgers, The State University of New Jersey - New Brunswick" ~ "Rutgers University-New Brunswick",
+    university_name == "Swiss Federal Institute of Technology Lausanne" ~ "Swiss Federal Institute of Technology in Lausanne",
+    university_name == "Swiss Federal Institute of Technology Zurich" ~ "Swiss Federal Institute of Technology in Zurich",
+    university_name == "Technical University Munich" ~ "Technical University of Munich",
+    university_name == "Technion-Israel Institute of Technology" ~ "Technion – Israel Institute of Technology",
+    university_name == "Texas A & M University" ~ "Texas A&M University, College Station",
+    university_name == "Texas A&M University - College Station" ~ "Texas A&M University, College Station",
+    university_name == "Texas A&M University" ~ "Texas A&M University, College Station",
+    university_name == "Imperial College of Science, Technology and Medicine" ~ "Imperial College London",
+    university_name == "Ohio State University - Columbus" ~ "Ohio State University, Columbus",
+    university_name == "University of Roma - La Sapienza" ~ "Sapienza University of Rome",
+    university_name == "University of Frankfurt" ~ "Goethe University Frankfurt",
+    university_name == "University of Colorado at Boulder" ~ "University of Colorado Boulder",
+    university_name == "University of Freiburg" ~ "Albert Ludwig University of Freiburg",
+    university_name == "University of Goettingen" ~ "University of Göttingen",
+    university_name == "University of Illinois at Urbana-Champaign" ~ "University of Illinois at Urbana–Champaign",
+    university_name == "University of Michigan - Ann Arbor" ~ "University of Michigan, Ann Arbor",
+    university_name == "University of Michigan-Ann Arbor" ~ "University of Michigan, Ann Arbor",
+    university_name == "University of Munich" ~ "Ludwig Maximilian University of Munich",
+    university_name == "University of Paris Sud (Paris 11)" ~ "University of Paris-Sud",
+    university_name == "University of Paris-Sud (Paris 11)" ~ "University of Paris-Sud",
+    university_name == "University of Pittsburgh" ~ "University of Pittsburgh - Pittsburgh Campus",
+    university_name == "University of Pittsburgh-Pittsburgh Campus" ~ "University of Pittsburgh - Pittsburgh Campus",
+    university_name == "University of Pittsburgh, Pittsburgh Campus" ~ "University of Pittsburgh - Pittsburgh Campus",
+    university_name == "University of Texas Southwestern Medical Center at Dallas" ~ "University of Texas Southwestern Medical Center",
+    TRUE ~ university_name
+  )) %>%
+  # join with school_country_data to add a country column
+  left_join(school_country_data, by = "university_name") %>% 
+  # organize Shanghai data similar to other data sets
+  select(world_rank, university_name, country, everything()) %>% 
+  # arrange with most current year's ranking at top
+  arrange(desc(year), world_rank)
+
+# remove school_country_data
+rm(school_country_data)
+
+# remove raw_shanghai_data
+rm(raw_shanghai_data)
+
+# clean the Times data
+times_data <- raw_times_data %>% 
+  # allow for ties to be present in the data set
+  mutate(world_rank = ifelse(str_detect(world_rank, "^="), substring(world_rank, 2), world_rank)) %>% 
+  # filter out universities with a ranking range
+  filter(str_detect(world_rank, "^\\d*$")) %>%
+  mutate(world_rank = as.double(world_rank)) %>%
+  # ensure country names will match between data sets
+  mutate(country = case_when(
+    country == "United States of America" ~ "United States",
+    country == "Unisted States of America" ~ "United States",
+    country == "Unted Kingdom" ~ "United Kingdom",
+    country == "South Korea" ~ "Korea, Republic of",
+    country == "Republic of Ireland" ~ "Ireland",
+    country == "Slovakia" ~ "Slovak Republic",
+    TRUE ~ country
+  )) %>% 
+  # convert "international" and "income" scores to doubles
+  mutate(international = sub("-", NA, international)) %>%
+  mutate(international = as.double(international)) %>% 
+  mutate(income = sub("-", NA, income)) %>%
+  mutate(income = as.double(income)) %>% 
+  mutate(total_score = as.double(total_score)) %>% 
+  # convert "international_students" values to percentage
+  mutate(international_students = as.double(sub("%", "", international_students))/100) %>% 
+  # convert "female_male_ratio" to double
+  mutate(female_male_ratio = 
+           as.double(sub(":.*", "", female_male_ratio)) / 
+           as.double(sub(".*:", "", female_male_ratio))) %>% 
+  # arrange with most current year's ranking at top
+  arrange(desc(year), world_rank)
+
+# remove raw_times_data
+rm(raw_times_data)
+
+# clean the expenditure data
+expenditure_data <- raw_expenditure_data %>%
+  # prep columns for pivot_wider
+  rename(year_1995 = "1995", year_2000 = "2000", year_2005 = "2005", year_2009 = "2009", year_2010 = "2010", year_2011 = "2011") %>%
+  mutate(institute_type = str_replace_all(institute_type, " ", "_")) %>%
+  # change column names to have one column for each category of data
+  pivot_wider(names_from = c(direct_expenditure_type, institute_type), values_from = c(year_1995, year_2000, year_2005, year_2009, year_2010, year_2011)) %>%
+  # remove empty columns
+    # code taken from <<https://stackoverflow.com/questions/15968494/how-to-delete-columns-that-contain-only-nas/45383054>>
+  select_if(~!all(is.na(.)))
+
+# remove raw_expenditure_data
+rm(raw_expenditure_data)
+rm(expenditure_data)
+```
+
+
+```{r summarize_countries}
+# filter the data sets to only show universities in countries that have expenditure data available
+cwur_expenditure_available <- cwur_data %>% 
+  filter(country %in% unique(expenditure$country))
+
+shanghai_expenditure_available <- shanghai_data %>% 
+  filter(country %in% unique(expenditure$country))
+
+times_expenditure_available <- times_data %>% 
+  filter(country %in% unique(expenditure$country))
+
+# remove clean data frames
+rm(cwur_data, shanghai_data, times_data)
+
+# create summary data frames that group average values by country
+cwur_summary <- cwur_expenditure_available %>% 
+  group_by(country, year) %>% 
+  summarize(average_world_rank = mean(world_rank), average_total_score = mean(score), average_quality_of_education_rank = mean(quality_of_education), average_alumni_employment_rank = mean(alumni_employment), average_quality_of_faculty_rank = mean(quality_of_faculty), average_publications_rank = mean(publications), average_influence_rank = mean(influence), average_citations_rank = mean(citations), average_broad_impact_rank = mean(broad_impact), average_patents_rank = mean(patents)) %>% 
+  ungroup()
+
+shanghai_summary <- shanghai_expenditure_available %>% 
+  group_by(country, year) %>% 
+  summarize(average_world_rank = mean(world_rank), average_total_score = mean(total_score), average_alumni_score = mean(alumni), average_hici_score = mean(hici), average_ns_score = mean(ns), average_pub_score = mean(pub), average_pcp_score = mean(pcp)) %>% 
+  ungroup()
+
+times_summary <- times_expenditure_available %>%
+  group_by(country, year) %>%
+  summarize(average_world_rank = mean(world_rank), 
+            average_total_score = mean(total_score),
+            average_teaching_score = mean(teaching),
+            average_international_score = mean(international),
+            average_research_score = mean(research),
+            average_citations_score = mean(citations),
+            average_income_score = mean(income),
+            average_num_students = mean(num_students),
+            average_student_staff_ratio = mean(student_staff_ratio),
+            average_international_student_percentage = mean(international_students), 
+            average_female_male_ratio = mean(female_male_ratio)) %>%
+  ungroup()
+
+# remove expenditure_available data frames
+rm(cwur_expenditure_available, shanghai_expenditure_available, times_expenditure_available)
+```
+
+```{r merge_summaries}
+# merge summary data sets
+  # start with the shanghait_summary, as it is largest
+merged_summary <- shanghai_summary %>% 
+  # add in the times_summary, next largest
+  full_join(times_summary, by = c("country", "year")) %>%
+  # combine world_rank and total_score from each data set
+  mutate(average_world_rank.x = ifelse(is.na(average_world_rank.x), 0, average_world_rank.x)) %>% 
+  mutate(average_world_rank.y = ifelse(is.na(average_world_rank.y), 0, average_world_rank.y)) %>% 
+  mutate(average_world_rank = (average_world_rank.x + average_world_rank.y) / 2) %>%
+  mutate(average_total_score.x = ifelse(is.na(average_total_score.x), 0, average_total_score.x)) %>% 
+  mutate(average_total_score.y = ifelse(is.na(average_total_score.y), 0, average_total_score.y)) %>% 
+  mutate(average_total_score = (average_total_score.x + average_total_score.y) / 2) %>%
+  # remove individual summary scores
+  select(country, year, average_world_rank, average_total_score, everything(), -average_world_rank.x, -average_world_rank.y, -average_total_score.x, -average_total_score.y) %>%
+  # add in the cwur_summary, the smallest summary
+  full_join(cwur_summary, by = c("country", "year")) %>%
+  # combine world_rank and total_score from each data set
+  mutate(average_world_rank.x = ifelse(is.na(average_world_rank.x), 0, average_world_rank.x)) %>% 
+  mutate(average_world_rank.y = ifelse(is.na(average_world_rank.y), 0, average_world_rank.y)) %>%
+  mutate(average_world_rank = (average_world_rank.x + average_world_rank.y) / 2) %>%
+  mutate(average_total_score.x = ifelse(is.na(average_total_score.x), 0, average_total_score.x)) %>% 
+  mutate(average_total_score.y = ifelse(is.na(average_total_score.y), 0, average_total_score.y)) %>% 
+  mutate(average_total_score = (average_total_score.x + average_total_score.y) / 2) %>%
+  # remove individual summary scores
+  select(country, year, average_world_rank, average_total_score, everything(), -average_world_rank.x, -average_world_rank.y, -average_total_score.x, -average_total_score.y) %>% 
+  arrange(desc(year), average_world_rank) %>% 
+  # attach expenditure data
+  left_join(expenditure)
+
+# remove non-merged summary data
+rm(cwur_summary, shanghai_summary, times_summary, expenditure_data)
+```
+
+```{r}
+# 
+cwur_rank_by_year <- cwur_expenditure_available %>%
+  filter(year != 2012) %>%
+  filter(world_rank <= 100) %>%
+  group_by(year,country) %>%
+  summarise(rank_top100 = sum(world_rank)) %>%
+  ungroup() 
+
+```
+
+
+## Introduction
+
+In today's modern of age of intense international competition, our group wanted to better understand **how national expenditure on education is related to international university rankings, if at all, and if not, what are any additional factors that make a higher/lower university ranking**.  To that end, we found data sets that gave us international university rankings, as well as a data set that gave us national expenditure on education in 36 different countries.
+
+After much analysis, we conclude that national expenditure on education is not a conclusive predictor of that country's average university world ranking.  In technical terms, we do not have sufficient evidence to reject the null hypothesis that a country's average university world ranking is not determined at all by that country's expenditure on higher education.   #?????
+
+* Thesis/hypothesis: 
+consider make our statement of conclusion a hypothesis in intro, leaves our finding to the last ‘interpretation’ section
+
+## Background
+
+
+### The Data
+
+Our team began by searching Kaggle.com for data on international university rankings and national expenditure on education.  On Kaggle, we found Myles O'Neill's repository of World University Rankings data.^[https://www.kaggle.com/mylesoneill/world-university-rankings]  From this repository, we used below 4 data sets.
+
+* Expenditure
+* University Ranking
+   + CWUR
+   + Shanghai
+   + Times
+   
+depends how we're gonna use our data sets, maybe we could consider shorten this data part. 
+
+#### Expenditure Data
+
+The first data set was information on national expenditure on public and private education by nation.  O'Neill scraped this data from the United States' National Center for Education Statistics' 2014 Digest of Education Statistics.^[https://nces.ed.gov/programs/digest/d14/tables/dt14_605.20.asp]  It includes data for each of the 34 countries that were in the Organisation for Economic Co-operation and Development in 2014, as well as data from Brazil and the Russian Federation.  For each data point, expenditure is measured as a percentage of the country's Gross Domestic Product (GDP).  Data on direct expenditure for public institutions is available for the years 1995, 2000, 2005, 2009, 2010, and 2011, separated by spending on elementary / secondary institutions and higher education institutions, though columns are present for the combined GDP% for all institutions.  The 2011 data also includes direct expenditure on private institutions, as well as a combined total for public and private expenditure.
+
+
+#### University Ranking Data
+
+The other three data sets are university ranking datasets.
+
+
+##### CWUR Data
+
+The first of these is from the Center for World University Rankings (CWUR).  O'Neill scraped the CWUR data from the CWUR's website^[https://cwur.org/], and combined the 2012, 2013, 2014, and 2015 World University Rankings. In 2012 and 2013, 100 universities were ranked.  In 2014 and 2015, 1000 universities were ranked.  The CWUR data set contains the following for each year:
+
+* the world ranking of the institution;
+
+* the name of the institution;
+
+* the country in which the institution is located;
+
+* the rank of that institution within their country;
+
+* a ranking of the institution's quality of education, determined by the number of alums who have won major academic distinctions compared to the institution's size;
+
+* a ranking of the institution's alumni employment opportunities, determined by the number of alums who have held top executive positions in large companies compared to the institution's size;
+
+* a ranking of the institution's faculty quality, determined by the number of faculty members who have won major academic distinctions compared to the institution's size;
+
+* a ranking of the institution's publications, determined by the number of papers in top-tier research journals;
+
+* a ranking of the institution's influence, determined by the number of papers in highly-influential research journals;
+
+* a ranking of the institution's publication citations, determined by the number of highly-cited research publications
+
+* a ranking of the institution's broad impact, determined by the number of papers in top-tier research journals across a broad spectrum of subjects;
+
+* a ranking of the institution's patent output, determined by the number of patents by university faculty, and;
+
+* a total "score" for the institution, determined by weighing the above rankings, adding these weights together, and then fitting these values to a normal distribution scaled from 0 to 100.
+
+Links to further explanations of these variables are included in the references.^[https://cwur.org/methodology/world-university-rankings.php] ^[https://cwur.org/methodology/preprint.pdf]
+
+
+##### Shanghai Data
+
+The second of these ranking data sets is the Academic Ranking of World Universities (ARWU) from ShanghaiRanking Consultancy, also known as the Shanghai Ranking.  O'Neill scraped the Shanghai data from the ARWU's website^[http://www.shanghairanking.com/index.html#], and combined the ARWU data from 2005 through 2015.  In each year, only the top 500 ranked universities are published, and of those only the top 100 are truly ranked: those ranked 101-500 are listed with a range of world rankings, not just a single number.  The Shanghai data set contains the following for each year:
+
+* the world ranking of the institution;
+
+* the name of the institution;
+
+* the rank of that institution within their country;
+
+* a total "score" for the institution, determined by weighing and summing the following scores, assigning the highest score the value of 100, and calculating the other scores as a percentage of that highest score;
+
+* a quality of education score for the institution, determined by the number of alums who have won major academic distinctions;
+
+* an awards score for the institution, determined by the number of faculty members who have won major academic distinctions;
+
+* a high-citation score for the institution, determined by the number of faculty members that are highly cited researchers;
+
+* a "Nature & Science" score for the institution, determined by the number of publications the institution has in the scholarly journals Nature and Science;
+
+  + it should be noted that, if the institution focuses on subject areas that would not be published in these journals, the weight of this score is zeroed out and distributed to other scores;
+  
+* a cited publications score for the institution, determined by the number of faculty publications listed in two published citation indexes, and;
+
+* a "per-capita performance" score for the institution, determined by the weighted values of the previous five scores divided by the full-time academic staff at the institution.
+
+A link to further explanations of these variables is included in the references.^[http://www.shanghairanking.com/ARWU-Methodology-2015.html]
+
+
+##### Times Data
+
+The third and final of these ranking data sets is the Times Higher Education World University Ranking, or simply the Times Ranking.  O'Neill scraped the Times data from the Times Higher Education website^[https://www.timeshighereducation.com/world-university-rankings], and combined the data from 2011 through 2016.  Similar to the Shanghai data, the Times data only truly ranks the top 100 institutions; however, unlike the Shanghai data, this is not because those below 100 are given a range of rankings (though this is true for some very low ranked universities).  Instead, after the top 100 ranked institutions, some institutions are allowed to tie for scores, which creates a sort of micro-range if you will.  The Times data set contains the following for each year:
+
+* the world ranking of the institution;
+
+* the name of the institution;
+
+* the country in which the institution is located;
+
+* a teaching score, equal to the percent of institutions below the raw teaching metric for the institution when a normal distribution is calculated from the raw teaching metrics for all assessed institutions;
+
+* an international score, equal to the percent of institutions below the raw international metric for the institution when a normal distribution is calculated from the raw international metrics for all assessed institutions;
+
+* a research score, equal to the percent of institutions below the raw research metric for the institution when a normal distribution is calculated from the raw research metrics for all assessed institutions;
+
+* a citation score, equal to the percent of institutions below the raw citation metric for the institution when a normal distribution is calculated from the raw citation metrics for all assessed institutions;
+
+* an income score, equal to the percent of institutions below the raw income metric for the institution when a normal distribution is calculated from the raw income metrics for all assessed institutions;
+
+* a total score, equal to the percent of institutions below the raw total metric for the institution when a normal distribution is calculated from the raw total metrics for all assessed institutions;
+
+* the number of students at the institution;
+
+* the student to staff ratio at the institution;
+
+* the percent of international students at the institution, and;
+
+* the female to male ratio at the institution.
+
+Links to further explanations of these variables are included in the references.^[https://www.timeshighereducation.com/world-university-rankings/world-university-rankings-2021-methodology] ^[https://www.timeshighereducation.com/sites/default/files/breaking_news_files/the_2021_world_university_rankings_methodology_24082020final.pdf]
+
+
+### Intentions
+
+In the rest of the report, we intend to assess each country's average university world ranking against it's 2011 expenditure on higher education, and draw conclusions from that assessment.
+
+We choose the 2011 expenditure data because it is the only year for which expenditure on public and private institutions was recorded (previous years only recorded public institutino expenditure).  As we do not have information on if each institution is public or private, we choose to consider the aggregate rankings against aggregate expenditure.
+
+
+
+## Analysis
+
+```{r include = TRUE, echo = FALSE, warning = FALSE}
+ggplot(filter(merged_summary, year >= 2011), aes(x = year_2011_Total_Higher_Education_Institutions, y = average_world_rank)) +
+  facet_wrap(~year) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_smooth(se = FALSE) +
+  ggtitle("Yearly Average Rankings") +
+  xlab("2011 Higher Education Expenditure (%GDP)") +
+  ylab("Average University Rank")
+```
+
+*Compares each country's 2011 higher education expenditure amount (as a percentage of GDP) to its average university ranking for each year from 2011 to 2016.*
+
+```{r include = TRUE, echo = FALSE, warning = FALSE}
+ggplot(filter(merged_summary, year >= 2011), aes(x = year_2011_Total_Higher_Education_Institutions, y = average_total_score)) +
+  facet_wrap(~year) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_smooth(se = FALSE) +
+  xlab("2011 Higher Education Expenditure (%GDP)") +
+  ylab("Average Total Score")
+```
+
+*Compares each country's 2011 higher education expenditure amount (as a percentage of GDP) to its average university score for each year from 2011 to 2016.*
+
+```{r include = TRUE, echo = FALSE}
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2011")))
+
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2012")))
+
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2013")))
+
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2014")))
+
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2015")))
+
+summary(lm(average_world_rank ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2016")))
+```
+
+*LMS analysis for average world ranking against 2011 total higher education expenditure in each year, 2011 to 2016.*
+
+```{r include = TRUE, echo = FALSE}
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2011")))
+
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2012")))
+
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2013")))
+
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2014")))
+
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2015")))
+
+summary(lm(average_total_score ~ year_2011_Total_Higher_Education_Institutions, filter(merged_summary, year == "2016")))
+```
+
+*LMS analysis for average world ranking against 2011 total higher education expenditure in each year, 2011 to 2016.*
+
+## Discussion
+
+From our analysis, we conclude that national expenditure on education is not a conclusive predictor of that country's average university world ranking.
+
+We make this conclusion based on the relatively large p-scores for the LMS analysis of average world ranking against expenditure in each year from 2011 to 2016.  The only year in which 2011 expenditure is a statistically significant predictor of average world ranking is 2016, and even then it is barely significant at the 0.1 level.
+
+This does bring up an interesting question, however: if 2011 expenditure only results in a statistically significant effect on average world ranking in 2016, does this mean we should expect all expenditure effects to be delayed?  In other words, does expenditure on education in a year only create dividends five years later?  Answering this question may be a task for future study, and future data.
+
+
+In order to further confirm our assessment that expenditure is not a conclusive predictor of institutional excellence, we compared expenditure to another metric common to each data set: institutional score.  This average score, with a maximum value of 100, might be another way to examine how expenditure affects university success.
+
+In this analysis, expenditure was a statistically significant predictor of average score in several years, but never at more than the 0.05 level.  Interestingly, 2011 expenditure was most significant at affecting score in 2014.  This lends some additional credence to the idea that the effects of expenditure are delayed, and not in the year immediately following the spending.
+
+
+While we trust in our analysis, we do recognize there are a number of areas for improvement, and also that some of our assumptions may be faulty.  It is important to note from the beginning that no data source is ever perfectly clean, or composed of all the data we might like to have.  The lack of data for national expenditure on private institutions over the years constrained us greatly in our work.  Additionally, since we only had expenditure datas for certain countries, other countries with exceptional universities were left out of our analysis, such as China and India.  As far as our assumptions are concerned, averaging the rankings between three organizations may have some inherent flaws to it, since each organization uses different criteria to create their rankings.  Some of this could be overcome by comparing expenditure to each criteria, and seeing which of those criteria is most or least affected by expenditure.  This is yet another avenue for further study.
+
+
+In conclusion, there is much to be learned about how expenditure affects worldwide university rankings, but we feel confident in saying that expenditure is not the most conclusive predictor of an educational institutions success.
+
+
+
+## References
+
+

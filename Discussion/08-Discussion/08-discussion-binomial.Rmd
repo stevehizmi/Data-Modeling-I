@@ -1,0 +1,236 @@
+---
+title: "STAT 240 Discussion 8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+library(tidyverse)
+source("../../scripts/viridis.R")
+source("../../scripts/ggprob.R")
+```
+
+## Group **3** 
+
+## Members Present
+
+- Alex Smith
+- Abhijeet Manohar
+- Steven Hizmi
+- Yumian Cui
+
+## Members Absent
+
+
+
+## Questions
+
+### 1
+
+For each scenario, explain why the random variable does *not* have a binomial distribution.
+
+1. A bucket contains 10 colored tokens with five that are red and five that are blue. Four tokens are drawn at random from the bucket one at a time, but without replacing the tokens drawn. $X_1$ is the number of red tokens selected.
+
+*The random variable $X_1$ does not have a binomial distribution because* **probability is not equal between draws***.*
+
+*Since the probability changes between draws due to drawing without replacement, this is not a series of equal Bernoulli trials, and thus does not have a binomial distribution.*
+
+
+2. A fair coin is tossed repeatedly until the tenth head is tossed. $X_2$ is the number of tails tossed prior to the tenth head.
+
+*The random variable $X_2$ does not have a binomial distribution because* **not every trial can display success***.*
+
+*$X_2$ is an example of a random variable with a* negative *binomial distribution, as each  trial cannot experience success, i.e. it is not possible to see success until at least 10 trials / coin flips have occurred.  If this was a true binomial distribution, each trial would be a Bernoulli trial, and thus each trial / coin flip would have a possibility of displaying success.*
+
+
+3. Four buckets each contain a total of five tokens each, some red and some blue. The number of red tokens in the buckets are 1, 2, 3, and 4 with blue tokens making up the remainder. One token is drawn at random from each bucket. $X_3$ is the total number of red tokens drawn.
+
+*The random variable $X_3$ does not have a binomial distribution because* **it is composed of events that do not share the same success outcome probability***.*
+
+*This seems like something closer to the Poisson distribution, since the total population of tokens has been divided into four smaller segments of population, each of which is then sampled from.*
+
+
+### Information about `dbinom()`
+
+The function `dbinom(x, size, prob)` calculates binomial probabilities.
+
+- `x` is the possible outcome
+- `size` is the parameter $n$ for the total number of trials
+- `prob` is the single trial success probability $p$.
+
+The function is *vectorized* which means that each argument can be replaced by a vector of values instead of a single value.
+The length of the vector of the output will be whichever input vector is longest. Other values are repeated cyclically, if necessary.
+This will be easiest to use if we set two of the arguments to single values and only set one to be a vector of more than one value, but at times we will use vectors for more than one argument.
+
+##### Examples
+
+> $P(X = x)$ for $n=5$, $p=0.4$ and $x=0,\ldots,5$.
+
+```{r}
+dbinom(0:5, 5, 0.4)
+```
+
+> $P(X = 2)$ for $p = 0.4$ and $n = 1, 2, 4, 8, 16$.
+
+```{r}
+dbinom(2, 2^(0:4), 0.4)
+```
+
+> $P(X = 2)$ for $n=5$ and $p = 0.1, 0.3, 0.5, 0.7, 0.9$.
+
+```{r}
+dbinom(2, 5, seq(0.1, 0.9, 0.2))
+```
+
+Other functions such as `pbinom()` and `qbinom()` are also vectorized.
+
+### 2
+
+Create a data frame with columns `n`, `p`, `x`, `mu`, and `prob` where:
+
+- `n` varies from 2 to 100 by twos (so each `n` value is even);
+- `p` equals 0.5;
+- `x` is $n/2$;
+- `mu` is the mean of the distribution;
+- `prob` is $P(X = x)$
+
+Show the first few rows using `head()`.
+
+```{r}
+df_p2 <- tibble(n = seq(2, 100, 2), 
+             p = 0.5, 
+             x = n/2, 
+             mu = n*p, 
+             prob = dbinom(x, n, p))
+
+head(df_p2)
+```
+
+**(a)** What is the relationship between `x` and `mu`?
+
+*`x` and `mu` are* **the same***, because when $p = 0.5$ the expected value of $x$ is equal to half the number of trials.  In other words, when $p = 0.5$ and $x = \frac{n}{2}$, $x = 0.5n = \mu$.* 
+
+**(b)** Make a line graph of `prob` versus `n`.
+
+```{r}
+ggplot(df_p2, aes(x = n, y = prob)) +
+  geom_line()
+```
+
+**(c)** Describe the pattern: how does the probability that a random variable is equal to the mean (when the mean is a possible value) change as $n$ increases?
+
+*The probability that a random variable is equal to the mean, when the mean is a possible value,* **decreases** *as $n$ increases.*
+
+*This is because it is more likely that, for $p = 0.5$, you see 1 success out of 2 trials than you see 500 successes out of 1000 trials.  As $n$ increases, more variability is added to the distribution: with more possible values of $x$, it is less likely to see an exact value of $x$ that you expect.*
+
+
+
+### 3
+
+The central limit theorem implies that the binomial distribution converges to a normal distribution as $n$ increases.
+This problem will examine one aspect of the convergence, namely the right tail probability of being more than two standard deviations above the mean,
+$P(X > \mu + 2\sigma)$.
+
+**(a)** What is the probability that a normal random variable with mean $\mu$ and standard deviation $\sigma$ exceeds $\mu + 2 \sigma$? Display answer rounded to four decimal places.
+
+```{r}
+mean <- mu <- runif(1)
+standard_deviation <- sigma <- runif(1)
+
+prob <- 1-pnorm(mean + 2*standard_deviation, mean, standard_deviation)
+
+round(prob, 4)
+```
+
+*The probability that a normal random variable with mean $\mu$ and standard deviation $\sigma$ exceeds $\mu + 2 \sigma$ is* **~2.28%***.*
+
+
+**(b)** 
+
+Create a data frame with columns `n`, `p`, `mu`, `sigma`, `x`, and `prob` where:  
+- `n` varies from 1 to 1000 by ones;  
+- `p` equals 0.5;  
+- `mu` is the mean of the distribution;  
+- `sigma` is the standard deviation of the distribution;  
+- `x` equals `mu` + 2*`sigma`;  
+- `prob` is $P(X > x)$  
+
+Display the first few rows of the data frame with `head()`.
+
+```{r}
+df_p3b <- tibble(
+  n = 1:1000,
+  p = 0.5, 
+  mu = n*p,
+  sigma = sqrt(n*p*(1-p)),
+  x = mu + 2 * sigma,
+  prob = 1 - pbinom(x, n, p)
+)
+
+head(df_p3b)
+```
+
+
+
+**(c)** Plot the right tail probabilities versus $n$. Add a red, dashed, horizontal line at the value you found in part **(a)**.
+Add a smooth curve which lessens the visual impact of the oscillations due to the discreteness of the binomial distribution.
+
+```{r}
+ggplot(df_p3b, aes(x = n, y = prob)) +
+  geom_smooth() +
+  geom_hline(yintercept = 0.0228, linetype = "dashed", color = "red")
+```
+
+**(d)** Repeat parts **(b)** and **(c)** if $p = 0.005$.
+
+```{r}
+df_p3d <- tibble(
+  n = 1:1000,
+  p = 0.005, 
+  mu = n*p,
+  sigma = sqrt(n*p*(1-p)),
+  x = mu + 2 * sigma,
+  prob = 1 - pbinom(x, n, p)
+)
+
+head(df_p3d)
+```
+
+```{r}
+ggplot(df_p3d, aes(x = n, y = prob)) +
+  geom_smooth() +
+  geom_hline(yintercept = 0.0228, linetype = "dashed", color = "red")
+```
+
+**(e)**
+
+Ignoring the oscillations, how do the patterns of the two smooth curves in the graphs differ from one another, especially when $n$ is large?
+
+*Ignoring the oscillations, the patterns of the two smooth curves in the graphs differ from one another in that* **the graph where $p = 0.5$ is closer to the expected value of $P(X > \mu + 2 \sigma)$ than the graph where $p = 0.005$***, especially when $n$ is large.*
+
+*It is also interesting that, as $n$ grows larger and $p = 0.5$, the binomial approximation approaches the true normal value of $P(X > \mu + 2 \sigma)$ from below, while as $n$ grows larger when $p = 0.005$, the binomial approximation approaches the true normal value of $P(X > \mu + 2 \sigma)$ from above.*
+
+### 4
+
+Draw graphs of the binomial distributions for $n=500$ and $p = 0.5$ and $p = 0.005$,
+scaled so that the x axis is restricted to where the probabilities are relatively large.  (One graph for each of the two $p$'s.)
+Overlay each plot with a red normal density with a mean and standard deviation that matches the mean and standard deviation of the corresponding binomial distribution.
+(Use functions in *gprob.R* for these graphs and set `scale=TRUE`.)
+
+Compare the skewness of the distributions. Comment on how this might help explain the differences in the right tail probabilities from Problem 3.
+
+```{r scale = TRUE}
+gbinom(500, 0.5, scale = TRUE) +
+  geom_norm_density(250, sqrt(500*.25), color = "red", scale = TRUE)
+  
+gbinom(500, 0.005, scale = TRUE) +
+  geom_norm_density(500*0.005, sqrt(500*(0.005)*(0.995)), color = "red", scale = TRUE)
+```
+
+*The binomial distribution* **when $p = 0.5$** *has* **no skew***.*
+
+*The binomial distribution* **when $p = 0.005$ *is *skewed right***.*
+
+*This may help explain the differences in the right tail probabilities from problem 3 in that* **when $p$ is small, the binomial approximation overestimates the right tail probability due to its right skew.  Thus, when $p = 0.005$, the binomial approximation of $P(X > \mu + 2 \sigma)$ is over / larger than the true normal distribution value.**
+
+
